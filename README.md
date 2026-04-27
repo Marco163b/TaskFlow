@@ -55,11 +55,11 @@ Link do vídeo:
 
 ## Integrantes
 
-Guilherme Barbiero — RM555185
-Marco Antonio Gonçalves — RM556818
-Vinicius Castro — RM556137
-Camila Mie Takara — RM555418
-Matheus Cantiere — RM558479
+- Guilherme Barbiero — RM555185
+- Marco Antonio Gonçalves — RM556818
+- Vinicius Castro — RM556137
+- Camila Mie Takara — RM555418
+- Matheus Cantiere — RM558479
 
 ## Observações
 
