@@ -1,8 +1,6 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ConfirmModal } from '../../components/ConfirmModal';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { CustomButton } from '../../components/CustomButton';
 import { Header } from '../../components/Header';
 import { StatusBadge } from '../../components/StatusBadge';
@@ -18,30 +16,44 @@ type RouteProps = RouteProp<TaskStackParamList, 'TaskDetail'>;
 export function TaskDetailScreen() {
   const navigation = useNavigation<NavigationProps>();
   const route = useRoute<RouteProps>();
-  const { user } = useAuth();
   const { getTaskById, removeTask } = useTasks();
+  const { user } = useAuth();
   const { theme } = useTheme();
-
-  const [deleteVisible, setDeleteVisible] = useState<boolean>(false);
 
   const { taskId } = route.params;
   const task = getTaskById(taskId);
   const isAdmin = user?.role === 'admin';
 
   async function confirmDelete(): Promise<void> {
-    await removeTask(taskId);
-    setDeleteVisible(false);
-    navigation.goBack();
+    if (!user) {
+      Alert.alert('Erro', 'Usuário não encontrado.');
+      return;
+    }
+
+    const deleted = await removeTask(taskId, user);
+
+    if (!deleted) {
+      Alert.alert('Ação não permitida', 'Apenas administradores podem excluir tarefas.');
+      return;
+    }
+
+    Alert.alert('Sucesso', 'Tarefa excluída com sucesso.');
+    navigation.navigate('TaskList');
+  }
+
+  function handleDelete(): void {
+    Alert.alert('Excluir tarefa', 'Tem certeza que deseja excluir esta tarefa?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Excluir', style: 'destructive', onPress: confirmDelete },
+    ]);
   }
 
   if (!task) {
     return (
       <View style={[styles.page, { backgroundColor: theme.background }]}>
         <Header />
-
         <View style={styles.container}>
           <Text style={[styles.title, { color: theme.text }]}>Tarefa não encontrada</Text>
-          <CustomButton title="Voltar" onPress={() => navigation.goBack()} />
         </View>
       </View>
     );
@@ -51,14 +63,10 @@ export function TaskDetailScreen() {
     <View style={[styles.page, { backgroundColor: theme.background }]}>
       <Header />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <View style={styles.container}>
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <View style={[styles.iconBox, { backgroundColor: theme.surfaceMuted }]}>
-            <Text style={styles.icon}>{task.categoryIcon}</Text>
-          </View>
-
+          <Text style={styles.icon}>{task.categoryIcon}</Text>
           <Text style={[styles.title, { color: theme.text }]}>{task.title}</Text>
-
           <StatusBadge status={task.status} />
 
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Descrição</Text>
@@ -74,7 +82,7 @@ export function TaskDetailScreen() {
 
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Criada por</Text>
           <Text style={[styles.text, { color: theme.subtitle }]}>
-            {task.createdByName ?? 'Usuário não identificado'} {task.createdByRole ? `(${task.createdByRole})` : ''}
+            {task.createdByName} ({task.createdByRole})
           </Text>
 
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Criada em</Text>
@@ -89,25 +97,18 @@ export function TaskDetailScreen() {
           onPress={() => navigation.navigate('TaskForm', { taskId })}
         />
 
-        {isAdmin ? (
-          <>
-            <View style={styles.space} />
-            <CustomButton
-              title="Excluir tarefa"
-              variant="danger"
-              onPress={() => setDeleteVisible(true)}
-            />
-          </>
-        ) : null}
-      </ScrollView>
+        <View style={styles.space} />
 
-      <ConfirmModal
-        visible={deleteVisible}
-        title="Excluir tarefa"
-        message="Tem certeza que deseja excluir esta tarefa? Essa ação não pode ser desfeita."
-        onCancel={() => setDeleteVisible(false)}
-        onConfirm={confirmDelete}
-      />
+        {isAdmin ? (
+          <CustomButton title="Excluir tarefa" variant="danger" onPress={handleDelete} />
+        ) : (
+          <View style={[styles.permissionBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.permissionText, { color: theme.subtitle }]}>
+              Apenas administradores podem excluir tarefas.
+            </Text>
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -120,43 +121,41 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 140,
-  },
   card: {
-    borderRadius: 24,
+    borderRadius: 14,
     borderWidth: 1,
-    padding: 20,
+    padding: 18,
     marginBottom: 16,
   },
-  iconBox: {
-    width: 58,
-    height: 58,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
   icon: {
-    fontSize: 32,
+    fontSize: 36,
+    marginBottom: 8,
   },
   title: {
-    fontSize: 25,
-    fontWeight: '900',
-    marginBottom: 12,
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
   },
   sectionTitle: {
     fontSize: 14,
-    fontWeight: '900',
-    marginTop: 18,
-    marginBottom: 5,
+    fontWeight: 'bold',
+    marginTop: 16,
+    marginBottom: 4,
   },
   text: {
     fontSize: 15,
-    lineHeight: 22,
   },
   space: {
     height: 10,
+  },
+  permissionBox: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+  },
+  permissionText: {
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '600',
   },
 });

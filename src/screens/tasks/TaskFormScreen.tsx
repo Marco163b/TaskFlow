@@ -14,17 +14,21 @@ import { TaskFormData, TaskPriority, TaskStatus } from '../../types/task';
 type NavigationProps = NativeStackNavigationProp<TaskStackParamList, 'TaskForm'>;
 type RouteProps = RouteProp<TaskStackParamList, 'TaskForm'>;
 
+const statusOptions: TaskStatus[] = ['pendente', 'em_andamento', 'concluida'];
+const priorityOptions: TaskPriority[] = ['baixa', 'media', 'alta'];
+
 export function TaskFormScreen() {
   const navigation = useNavigation<NavigationProps>();
   const route = useRoute<RouteProps>();
+  const { addTask, updateTask, getTaskById } = useTasks();
   const { user } = useAuth();
-  const { addTask, updateTask, updateTaskStatus, getTaskById } = useTasks();
   const { theme } = useTheme();
 
   const taskId = route.params?.taskId;
   const existingTask = taskId ? getTaskById(taskId) : undefined;
   const isEditing = Boolean(taskId);
-  const isUserEditing = isEditing && user?.role === 'user';
+  const isAdmin = user?.role === 'admin';
+  const onlyStatusEdition = isEditing && !isAdmin;
 
   const [title, setTitle] = useState<string>(existingTask?.title ?? '');
   const [description, setDescription] = useState<string>(existingTask?.description ?? '');
@@ -34,10 +38,8 @@ export function TaskFormScreen() {
   const [categoryIcon, setCategoryIcon] = useState<string>(existingTask?.categoryIcon ?? '📌');
 
   async function handleSave(): Promise<void> {
-    if (isUserEditing && taskId) {
-      await updateTaskStatus(taskId, status);
-      Alert.alert('Sucesso', 'Status atualizado com sucesso.');
-      navigation.goBack();
+    if (!user) {
+      Alert.alert('Erro', 'Usuário não encontrado.');
       return;
     }
 
@@ -56,14 +58,68 @@ export function TaskFormScreen() {
     };
 
     if (taskId) {
-      await updateTask(taskId, data);
-      Alert.alert('Sucesso', 'Tarefa atualizada com sucesso.');
+      await updateTask(taskId, data, user);
+      Alert.alert('Sucesso', onlyStatusEdition ? 'Status atualizado com sucesso.' : 'Tarefa atualizada com sucesso.');
     } else {
-      await addTask(data);
+      await addTask(data, user);
       Alert.alert('Sucesso', 'Tarefa criada com sucesso.');
     }
 
     navigation.goBack();
+  }
+
+  function renderStatusOption(item: TaskStatus) {
+    const labels: Record<TaskStatus, string> = {
+      pendente: 'Pendente',
+      em_andamento: 'Andamento',
+      concluida: 'Concluída',
+    };
+
+    return (
+      <TouchableOpacity
+        key={item}
+        style={[
+          styles.option,
+          {
+            backgroundColor: status === item ? theme.primary : theme.card,
+            borderColor: theme.border,
+          },
+        ]}
+        onPress={() => setStatus(item)}
+      >
+        <Text style={[styles.optionText, { color: status === item ? '#ffffff' : theme.text }]}>
+          {labels[item]}
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
+  function renderPriorityOption(item: TaskPriority) {
+    const labels: Record<TaskPriority, string> = {
+      baixa: 'Baixa',
+      media: 'Média',
+      alta: 'Alta',
+    };
+
+    return (
+      <TouchableOpacity
+        key={item}
+        disabled={onlyStatusEdition}
+        style={[
+          styles.option,
+          {
+            backgroundColor: priority === item ? theme.primary : theme.card,
+            borderColor: theme.border,
+            opacity: onlyStatusEdition ? 0.5 : 1,
+          },
+        ]}
+        onPress={() => setPriority(item)}
+      >
+        <Text style={[styles.optionText, { color: priority === item ? '#ffffff' : theme.text }]}>
+          {labels[item]}
+        </Text>
+      </TouchableOpacity>
+    );
   }
 
   return (
@@ -71,7 +127,7 @@ export function TaskFormScreen() {
       <Header />
 
       <ScrollView contentContainerStyle={styles.container}>
-        {isUserEditing ? (
+        {onlyStatusEdition ? (
           <View style={[styles.warning, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Text style={[styles.warningText, { color: theme.subtitle }]}>
               Usuário comum pode editar apenas o status da tarefa.
@@ -79,124 +135,47 @@ export function TaskFormScreen() {
           </View>
         ) : null}
 
-        {!isUserEditing ? (
-          <>
-            <Text style={[styles.label, { color: theme.text }]}>Título</Text>
-            <CustomInput value={title} onChangeText={setTitle} placeholder="Ex: Estudar React Native" />
+        <Text style={[styles.label, { color: theme.text }]}>Título</Text>
+        <CustomInput
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Ex: Estudar React Native"
+          editable={!onlyStatusEdition}
+        />
 
-            <Text style={[styles.label, { color: theme.text }]}>Descrição</Text>
-            <CustomInput
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Descreva a tarefa"
-              multiline
-              style={styles.textArea}
-            />
-          </>
-        ) : (
-          <>
-            <Text style={[styles.readonlyTitle, { color: theme.text }]}>{existingTask?.title}</Text>
-            <Text style={[styles.readonlyText, { color: theme.subtitle }]}>
-              {existingTask?.description || 'Sem descrição'}
-            </Text>
-          </>
-        )}
+        <Text style={[styles.label, { color: theme.text }]}>Descrição</Text>
+        <CustomInput
+          value={description}
+          onChangeText={setDescription}
+          placeholder="Descreva a tarefa"
+          multiline
+          editable={!onlyStatusEdition}
+          style={styles.textArea}
+        />
 
         <Text style={[styles.label, { color: theme.text }]}>Status</Text>
-        <View style={styles.options}>
-          <TouchableOpacity
-            style={[
-              styles.option,
-              { backgroundColor: theme.card, borderColor: theme.border },
-              status === 'pendente' && { backgroundColor: theme.primary },
-            ]}
-            onPress={() => setStatus('pendente')}
-          >
-            <Text style={[styles.optionText, { color: status === 'pendente' ? '#ffffff' : theme.text }]}>
-              Pendente
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.options}>{statusOptions.map(renderStatusOption)}</View>
 
-          <TouchableOpacity
-            style={[
-              styles.option,
-              { backgroundColor: theme.card, borderColor: theme.border },
-              status === 'em_andamento' && { backgroundColor: theme.primary },
-            ]}
-            onPress={() => setStatus('em_andamento')}
-          >
-            <Text style={[styles.optionText, { color: status === 'em_andamento' ? '#ffffff' : theme.text }]}>
-              Andamento
-            </Text>
-          </TouchableOpacity>
+        <Text style={[styles.label, { color: theme.text }]}>Prioridade</Text>
+        <View style={styles.options}>{priorityOptions.map(renderPriorityOption)}</View>
 
-          <TouchableOpacity
-            style={[
-              styles.option,
-              { backgroundColor: theme.card, borderColor: theme.border },
-              status === 'concluida' && { backgroundColor: theme.primary },
-            ]}
-            onPress={() => setStatus('concluida')}
-          >
-            <Text style={[styles.optionText, { color: status === 'concluida' ? '#ffffff' : theme.text }]}>
-              Concluída
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={[styles.label, { color: theme.text }]}>Categoria</Text>
+        <CustomInput
+          value={category}
+          onChangeText={setCategory}
+          placeholder="Ex: Estudos"
+          editable={!onlyStatusEdition}
+        />
 
-        {!isUserEditing ? (
-          <>
-            <Text style={[styles.label, { color: theme.text }]}>Prioridade</Text>
-            <View style={styles.options}>
-              <TouchableOpacity
-                style={[
-                  styles.option,
-                  { backgroundColor: theme.card, borderColor: theme.border },
-                  priority === 'baixa' && { backgroundColor: theme.primary },
-                ]}
-                onPress={() => setPriority('baixa')}
-              >
-                <Text style={[styles.optionText, { color: priority === 'baixa' ? '#ffffff' : theme.text }]}>
-                  Baixa
-                </Text>
-              </TouchableOpacity>
+        <Text style={[styles.label, { color: theme.text }]}>Ícone</Text>
+        <CustomInput
+          value={categoryIcon}
+          onChangeText={setCategoryIcon}
+          placeholder="Ex: 📚"
+          editable={!onlyStatusEdition}
+        />
 
-              <TouchableOpacity
-                style={[
-                  styles.option,
-                  { backgroundColor: theme.card, borderColor: theme.border },
-                  priority === 'media' && { backgroundColor: theme.primary },
-                ]}
-                onPress={() => setPriority('media')}
-              >
-                <Text style={[styles.optionText, { color: priority === 'media' ? '#ffffff' : theme.text }]}>
-                  Média
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.option,
-                  { backgroundColor: theme.card, borderColor: theme.border },
-                  priority === 'alta' && { backgroundColor: theme.primary },
-                ]}
-                onPress={() => setPriority('alta')}
-              >
-                <Text style={[styles.optionText, { color: priority === 'alta' ? '#ffffff' : theme.text }]}>
-                  Alta
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={[styles.label, { color: theme.text }]}>Categoria</Text>
-            <CustomInput value={category} onChangeText={setCategory} placeholder="Ex: Estudos" />
-
-            <Text style={[styles.label, { color: theme.text }]}>Ícone</Text>
-            <CustomInput value={categoryIcon} onChangeText={setCategoryIcon} placeholder="Ex: 📚" />
-          </>
-        ) : null}
-
-        <CustomButton title={isUserEditing ? 'Salvar status' : 'Salvar tarefa'} onPress={handleSave} />
+        <CustomButton title={onlyStatusEdition ? 'Atualizar status' : 'Salvar tarefa'} onPress={handleSave} />
       </ScrollView>
     </View>
   );
@@ -209,6 +188,16 @@ const styles = StyleSheet.create({
   container: {
     padding: 16,
     paddingBottom: 32,
+  },
+  warning: {
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  warningText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   label: {
     fontSize: 14,
@@ -235,25 +224,5 @@ const styles = StyleSheet.create({
   optionText: {
     fontWeight: '600',
     fontSize: 13,
-  },
-  warning: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-  },
-  warningText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  readonlyTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  readonlyText: {
-    fontSize: 15,
-    marginBottom: 18,
-    lineHeight: 22,
   },
 });

@@ -9,10 +9,10 @@ export async function saveTreatmentStorage(treatment: TreatmentPreference): Prom
 }
 
 export async function getTreatmentStorage(): Promise<TreatmentPreference | null> {
-  const data = await AsyncStorage.getItem(TREATMENT_STORAGE_KEY);
+  const treatment = await AsyncStorage.getItem(TREATMENT_STORAGE_KEY);
 
-  if (data === 'Sr.' || data === 'Sra.' || data === 'Srta.') {
-    return data;
+  if (treatment === 'Sr.' || treatment === 'Sra.' || treatment === 'Srta.') {
+    return treatment;
   }
 
   return null;

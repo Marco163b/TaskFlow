@@ -6,7 +6,7 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {
-  const label = {
+  const label: Record<TaskStatus, string> = {
     pendente: 'Pendente',
     em_andamento: 'Em andamento',
     concluida: 'Concluída',

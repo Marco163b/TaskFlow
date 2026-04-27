@@ -6,8 +6,9 @@ interface CustomButtonProps {
   title: string;
   onPress: () => void;
   loading?: boolean;
-  variant?: 'primary' | 'danger' | 'secondary' | 'success';
+  variant?: 'primary' | 'danger' | 'secondary';
   icon?: ReactNode;
+  disabled?: boolean;
 }
 
 export function CustomButton({
@@ -16,31 +17,34 @@ export function CustomButton({
   loading = false,
   variant = 'primary',
   icon,
+  disabled = false,
 }: CustomButtonProps) {
   const { theme } = useTheme();
 
-  const background = {
+  const backgroundColor = {
     primary: theme.primary,
     danger: theme.danger,
-    secondary: theme.surfaceMuted,
-    success: theme.success,
-  };
-
-  const textColor = variant === 'secondary' ? theme.text : '#ffffff';
+    secondary: theme.subtitle,
+  }[variant];
 
   return (
     <TouchableOpacity
-      activeOpacity={0.85}
-      style={[styles.button, { backgroundColor: background[variant] }]}
+      style={[
+        styles.button,
+        {
+          backgroundColor,
+          opacity: disabled ? 0.5 : 1,
+        },
+      ]}
       onPress={onPress}
-      disabled={loading}
+      disabled={loading || disabled}
     >
       {loading ? (
-        <ActivityIndicator color={textColor} />
+        <ActivityIndicator color="#ffffff" />
       ) : (
         <>
           {icon}
-          <Text style={[styles.text, { color: textColor }]}>{title}</Text>
+          <Text style={styles.text}>{title}</Text>
         </>
       )}
     </TouchableOpacity>
@@ -49,20 +53,17 @@ export function CustomButton({
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: 52,
-    borderRadius: 16,
+    minHeight: 50,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     flexDirection: 'row',
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 10,
-    elevation: 3,
+    gap: 8,
   },
   text: {
-    fontWeight: '800',
-    fontSize: 15,
+    color: '#ffffff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

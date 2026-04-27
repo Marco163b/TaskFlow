@@ -14,9 +14,9 @@ export interface Task {
   categoryIcon: string;
   createdAt: string;
   updatedAt: string;
-  createdByUserId?: number;
-  createdByName?: string;
-  createdByRole?: UserRole;
+  createdByUserId: number;
+  createdByName: string;
+  createdByRole: UserRole;
 }
 
 export type TaskFormData = {

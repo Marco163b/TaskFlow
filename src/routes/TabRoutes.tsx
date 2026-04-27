@@ -1,16 +1,28 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import { HomeStackRoutes } from './HomeStackRoutes';
 import { SettingsStackRoutes } from './SettingsStackRoutes';
 import { TaskStackRoutes } from './TaskStackRoutes';
 
-const Tab = createBottomTabNavigator();
+export type TabParamList = {
+  Home: undefined;
+  Tarefas: undefined;
+  Configurações: undefined;
+};
+
+const Tab = createBottomTabNavigator<TabParamList>();
 
 export function TabRoutes() {
   const { theme } = useTheme();
+  const { user } = useAuth();
+
+  const initialRouteName: keyof TabParamList =
+    user?.role === 'admin' ? 'Configurações' : 'Home';
 
   return (
     <Tab.Navigator
+      initialRouteName={initialRouteName}
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
